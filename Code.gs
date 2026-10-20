@@ -5,6 +5,9 @@
     right-to-left marks can sneak in when it is copied.        */
 
 function doGet(e) {
+  // An outside site can also call the API over GET:  ...exec?fn=getState&args=["ABC12"]
+  if (e && e.parameter && e.parameter.fn) return api_(e.parameter.fn, parseArgs_(e.parameter.args), e.parameter.key);
+
   var t = HtmlService.createTemplateFromFile('index');
   // Deployment URL, used to build the QR code
   try { t.webUrl = ScriptApp.getService().getUrl(); } catch (err) { t.webUrl = ''; }
@@ -16,25 +19,51 @@ function doGet(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-/* ===== JSON API for the GitHub Pages site =====
-   The page sends: POST {fn:"getState", args:["ABC12"]}  (Content-Type text/plain)
-   and receives:   {result: ...}  or  {error: "..."}                          */
+/* ===== JSON gateway for an outside site (7rof.app, GitHub Pages, ...) =====
 
-var API_FNS_ = {
-  joinRoom: joinRoom, buzz: buzz, getState: getState,
-  resetBuzz: resetBuzz, removePlayer: removePlayer,
-  setBoard: setBoard, getBoard: getBoard, clearRoom: clearRoom
-};
+   POST to the /exec URL, Content-Type: text/plain  (text/plain avoids the
+   CORS preflight that Apps Script cannot answer):
+
+     body: {"fn":"joinRoom","args":["ABC12","Ahmed",1]}
+     back: {"result":{...}}      or      {"error":"..."}
+
+   HOST_KEY below protects the four functions that can wipe or overwrite a
+   room. Leave it "" and they stay open to anyone who guesses a room code;
+   set it to any random string and the outside site must send
+   {"key":"<same string>"} with those calls. Note it is only a speed bump:
+   a key placed in a public web page's JavaScript is readable by anyone.   */
+
+var HOST_KEY = '';
+
+var HOST_ONLY_ = { resetBuzz: 1, removePlayer: 1, setBoard: 1, clearRoom: 1 };
 
 function doPost(e) {
+  var req = {};
+  try { req = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (err) {}
+  return api_(req.fn, req.args, req.key);
+}
+
+function parseArgs_(raw) {
+  if (!raw) return [];
+  try { var a = JSON.parse(raw); return (a instanceof Array) ? a : [a]; }
+  catch (err) { return [String(raw)]; }
+}
+
+function api_(fn, args, key) {
   var out;
   try {
-    var req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
-    var f = API_FNS_[req.fn];
-    if (!f) throw new Error('unknown fn');
-    out = { result: f.apply(null, req.args || []) };
+    // Built here, not at load time, so no function-order surprises.
+    var table = {
+      joinRoom: joinRoom, buzz: buzz, getState: getState, getBoard: getBoard,
+      resetBuzz: resetBuzz, removePlayer: removePlayer,
+      setBoard: setBoard, clearRoom: clearRoom
+    };
+    var f = table[fn];
+    if (!f) throw new Error('unknown fn: ' + fn);
+    if (HOST_KEY && HOST_ONLY_[fn] && String(key || '') !== HOST_KEY) throw new Error('bad key');
+    out = { result: f.apply(null, (args instanceof Array) ? args : []) };
   } catch (err) {
-    out = { error: String(err && err.message || err) };
+    out = { error: String((err && err.message) || err) };
   }
   return ContentService.createTextOutput(JSON.stringify(out))
     .setMimeType(ContentService.MimeType.JSON);
