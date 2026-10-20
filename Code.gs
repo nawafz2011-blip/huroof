@@ -106,7 +106,6 @@ function joinRoom(room, name, team) {
       if (d.players[i].n === name) { d.players[i].t = team || 1; found = true; break; }
     }
     if (!found) {
-      if (d.players.length >= 20) return { ok: false, msg: 'room full' };
       d.players.push({ n: name, t: team || 1 });
     }
     writeRoom_(room, d);

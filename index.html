@@ -394,7 +394,7 @@ input[type=color]{width:46px;height:32px;min-width:46px;padding:0;border:0;backg
 
     <div class="card">
       <div class="ctitle"><span>اللاعبون</span>
-        <span><button id="pSync" style="padding:4px 10px;font-size:12px;margin-inline-end:8px">⟳ تحديث</button><span id="pCount">0/9</span></span></div>
+        <span><button id="pSync" style="padding:4px 10px;font-size:12px;margin-inline-end:8px">⟳ تحديث</button><span id="pCount">0</span></span></div>
       <p class="hint">اضغط على اللاعب لتغيير فريقه، واضغط ✕ لطرده.</p>
       <div class="plist" id="plist"></div>
       <div class="addrow">
@@ -4061,10 +4061,9 @@ function drawPlayers(){
     c.querySelector('.x').onclick=e=>{e.stopPropagation();const gone=players[i].n;players.splice(i,1);saveP();drawPlayers();drawBuzzers();if(GAS&&CODE)gasRun('removePlayer',[CODE,gone]);};
     l.appendChild(c);
   });
-  $('pCount').textContent=players.length+"/9";
+  $('pCount').textContent=players.length;
 }
 function addPlayer(n,t){
-  if(players.length>=9)return false;
   if(!n||players.some(p=>p.n===n))return false;
   players.push({n:n,t:t||1}); saveP(); drawPlayers(); drawBuzzers(); return true;
 }
@@ -5718,7 +5717,7 @@ function gasHostTick(){
     var changed=false;
     (st.players||[]).forEach(function(p){
       if(!players.some(function(x){return x.n===p.n;})){
-        if(players.length<9){ players.push({n:p.n,t:p.t||1}); changed=true; }
+        players.push({n:p.n,t:p.t||1}); changed=true;
       }
     });
     if(changed){ saveP(); drawPlayers(); drawBuzzers(); }
@@ -5770,7 +5769,7 @@ if(GAS){
     gasRun('getState',[CODE],function(st){
       if(st && st.players){
         var srv=st.players;
-        var next=srv.slice(0,9).map(function(p){ return {n:p.n,t:p.t||1}; });
+        var next=srv.map(function(p){ return {n:p.n,t:p.t||1}; });
         if(JSON.stringify(next)!==JSON.stringify(players)){
           players=next;
           buzzOrder=buzzOrder.filter(function(n){ return players.some(function(x){return x.n===n;}); });
