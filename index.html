@@ -5801,5 +5801,39 @@ if(GAS){
   $('roomStat').textContent='الجرس عن بُعد غير متاح — افتح الموقع من رابط النشر.';
 }
 </script>
+<script>
+/* إذا كان رابط Apps Script المنشور لا يملك بوابة الاتصال بعد (نسخة قديمة)،
+   نعرض نسخة Apps Script نفسها داخل الصفحة، فيعمل الجرس وشاشة العرض والجوالات
+   فوراً. وحين تُنشر النسخة الجديدة يتحوّل الموقع تلقائياً إلى الوضع المباشر. */
+(function(){
+  if(GAS_NATIVE || !API_URL) return;
+  var done=false;
+  function fallback(){
+    if(done) return; done=true;
+    try{ for(var i=1;i<100000;i++){ clearInterval(i); clearTimeout(i); } }catch(e){}
+    var r=''; try{ var m=location.search.match(/[?&]r=([A-Za-z0-9]{5})/); if(m) r='?r='+m[1].toUpperCase(); }catch(e){}
+    document.open();
+    document.write('<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8">'
+      +'<meta name="viewport" content="width=device-width, initial-scale=1">'
+      +'<title>خلية الحروف</title><link rel="icon" type="image/png" href="favicon.png">'
+      +'<link rel="apple-touch-icon" href="apple-touch-icon.png">'
+      +'<style>html,body{margin:0;height:100%;background:#7423d6;overflow:hidden}'
+      +'iframe{border:0;width:100%;height:100%;display:block}</style></head><body>'
+      +'<iframe src="'+API_URL+r+'" allow="autoplay; fullscreen; clipboard-write" allowfullscreen></iframe>'
+      +'</body></html>');
+    document.close();
+  }
+  var ctl=('AbortController' in window)?new AbortController():null;
+  var t=setTimeout(function(){ try{ctl&&ctl.abort();}catch(e){} fallback(); },10000);
+  fetch(API_URL+'?fn=getState&args='+encodeURIComponent('["PING0"]'),ctl?{signal:ctl.signal}:{})
+    .then(function(r){ return r.text(); })
+    .then(function(x){
+      clearTimeout(t);
+      var ok=false; try{ ok = ('result' in JSON.parse(x)); }catch(e){}
+      if(!ok) fallback();
+    })
+    .catch(function(){ clearTimeout(t); fallback(); });
+})();
+</script>
 </body>
 </html>
