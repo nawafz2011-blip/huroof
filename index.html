@@ -99,6 +99,29 @@ input::placeholder{color:#b39ad6}
 .tm.pick:hover{filter:brightness(1.08)}
 .tm.pick:active{transform:scale(.97)}
 .tm.armed{box-shadow:0 0 0 3px #fff}
+/* ===== شاشة العرض: استغلال كامل مساحة التلفزيون =====
+   كان اللوح محصوراً بعرض 760px وبحد أقصى 84px للخلية، فيقعد صغيراً
+   في وسط شاشة كبيرة. الآن يُفكّ الحصر ويُحسب حجم الخلية من المساحة
+   الحقيقية المتاحة طولاً وعرضاً (الحساب في tvFit). */
+html.tvmode .app{max-width:none;padding:10px 14px 14px}
+html.tvmode .top{margin:4px 0 8px}
+html.tvmode.tvwide #tv{display:grid;column-gap:22px;align-content:center;
+  grid-template-columns:minmax(190px,22%) 1fr;
+  grid-template-rows:auto auto auto 1fr;
+  min-height:calc(100vh - 96px)}
+html.tvmode.tvwide #tv>#tvLinkBar{grid-column:1;grid-row:1;margin-bottom:4px}
+html.tvmode.tvwide #tv>#tvRound{grid-column:1;grid-row:2;font-size:clamp(20px,2.1vw,38px)}
+html.tvmode.tvwide #tv>.scores{grid-column:1;grid-row:3;flex-direction:column;align-items:stretch}
+html.tvmode.tvwide #tv>.scores .tm{justify-content:space-between;font-size:clamp(15px,1.5vw,26px)}
+html.tvmode.tvwide #tv>.scores .tm b{font-size:clamp(22px,2.6vw,44px)}
+html.tvmode.tvwide #tv>.hint{grid-column:1;grid-row:4;align-self:start}
+html.tvmode.tvwide #tv>.board{grid-column:2;grid-row:1/-1;align-self:center;justify-self:center;
+  padding-inline:calc(8px + (var(--hw) + var(--hg,4px))/4)}
+/* الصفوف الفردية كانت تُزاح يميناً بنصف خلية فتخرج عن الإطار ويُقصّ آخر عمود.
+   نوزّع الإزاحة على الجهتين (ربع إلى اليسار وربع إلى اليمين) فيتوسّط اللوح
+   داخل إطاره ولا يُقصّ منه شيء. */
+html.tvmode.tvwide .hrow{transform:translateX(calc((var(--hw) + var(--hg,4px))/-4))}
+html.tvmode.tvwide .hrow.off{transform:translateX(calc((var(--hw) + var(--hg,4px))/4))}
 .rlabel{text-align:center;color:var(--yel);font-weight:800;margin-bottom:8px}
 
 /* اللوح */
@@ -381,7 +404,7 @@ input[type=color]{width:46px;height:32px;min-width:46px;padding:0;border:0;backg
     <button id="tAll">طباعة / PDF</button>
     <button id="tTv">شاشة العرض 📺</button>
     <button id="tRole" title="تبديل الدور">👤</button>
-    <span class="badge" id="ver" style="align-self:center">v131-gas</span>
+    <span class="badge" id="ver" style="align-self:center">v133-tvfit</span>
   </div>
 
   <!-- ========== الغرفة ========== -->
@@ -4584,6 +4607,41 @@ function buildHive(){
   setTimeout(()=>{animIn=false;animBase=0;},60);
 }
 function hexSize(n){ return n===3?'clamp(66px,20vw,110px)':(n===4?'clamp(54px,16.5vw,96px)':'clamp(46px,14vw,84px)'); }
+/* ===== ملاءمة لوح شاشة العرض لمقاس الشاشة =====
+   اللوح شبكة n×n من خلايا سداسية متداخلة:
+     العرض  = n*hw + (n-1)*hg + (hw+hg)/2      (الصفوف الفردية مُزاحة بنصف خلية)
+     الطول  = hw*(1.16 + (n-1)*(1.16+ov))      (ov سالب = تداخل رأسي)
+   نحسب أكبر hw يفي بالقيدين معاً، فيملأ اللوح الشاشة دون أن يتجاوزها. */
+function tvFit(){
+  if(typeof isTV==='undefined' || !isTV) return;
+  var root=document.documentElement, sec=document.getElementById('tv');
+  if(!sec) return;
+  var n=tvFitSize||5;
+  var wide=(window.innerWidth/Math.max(1,window.innerHeight))>=1.25;
+  root.classList.toggle('tvwide',wide);
+  if(!wide){ root.style.setProperty('--hw',hexSize(n)); return; }
+  var cs=getComputedStyle(root);
+  var hg=parseFloat(cs.getPropertyValue('--hg')); if(!isFinite(hg)) hg=4;
+  var ov=parseFloat(cs.getPropertyValue('--ov')); if(!isFinite(ov)) ov=-0.26;
+  var r=sec.getBoundingClientRect();
+  var side=document.getElementById('tvRound');
+  var sideW=side?side.getBoundingClientRect().width:0;
+  /* 22 فجوة العمودين، و30/42 إطار .board وحاشيته */
+  var availW=r.width - sideW - 22 - 30;
+  var availH=window.innerHeight - r.top - 18 - 42;
+  var byW=(availW - (n-1)*hg - hg/2)/(n+0.5);
+  var byH=availH/(1.16 + (n-1)*(1.16+ov));
+  var hw=Math.floor(Math.min(byW,byH));
+  /* لا سقف أعلى: القيدان أعلاه هما الحد. أي سقف ثابت يعيد المشكلة
+     نفسها على الشاشات الكبيرة — وهذا ما كان يصغّر اللوح أصلاً. */
+  if(!isFinite(hw)||hw<40) hw=40;
+  root.style.setProperty('--hw',hw+'px');
+}
+var tvFitSize=5, tvFitT=null;
+window.addEventListener('resize',function(){
+  if(tvFitT) clearTimeout(tvFitT);
+  tvFitT=setTimeout(function(){ tvFitT=null; tvFit(); },120);
+});
 var justL=null, animIn=false, winCol=null, animBase=0;
 function drawHiveInto(el,n,arr,st,act,onPick){
   el.innerHTML='';
@@ -5275,6 +5333,7 @@ function renderTV(d){
   if(d.c1) document.documentElement.style.setProperty('--grn',d.c1);
   if(d.c2) document.documentElement.style.setProperty('--org',d.c2);
   document.documentElement.style.setProperty('--hw',hexSize(d.size||5));
+  tvFitSize=d.size||5; tvFit();
   $('tvRound').textContent=d.round||'';
   $('tvN1').textContent=d.t1||''; $('tvN2').textContent=d.t2||'';
   $('tvS1').textContent=d.s1||0; $('tvS2').textContent=d.s2||0;
@@ -5376,6 +5435,7 @@ function renderTV(d){
 }
 function goTV(){
   isTV=true;
+  document.documentElement.classList.add('tvmode');
   try{localStorage.setItem('role','tv')}catch(e){}
   $('roleGate').classList.add('hidden');
   $('player').classList.add('hidden');
@@ -5384,6 +5444,7 @@ function goTV(){
   if(tvCode) $('tvCodeIn').value=tvCode;
   $('tvStat').textContent = tvCode? ('بانتظار «'+tvCode+'»…') : 'بدون رمز (نفس المتصفح)';
   tvWatch(); tvAsk();
+  tvFit();
 }
 var tvGot=false, tvWait=null;
 let tvRetry=null;
@@ -5623,6 +5684,7 @@ $('roleTv').onclick=goTV;
 function showGate(){ $('roleGate').classList.remove('hidden'); }
 $('roleHost').onclick=()=>{
   isTV=false;
+  document.documentElement.classList.remove('tvmode','tvwide');
   try{localStorage.setItem('role','host')}catch(e){}
   $('roleGate').classList.add('hidden');
   $('player').classList.add('hidden');
