@@ -106,7 +106,7 @@ input::placeholder{color:#b39ad6}
 html.tvmode .app{max-width:none;padding:10px 14px 14px}
 html.tvmode .top{margin:4px 0 8px}
 html.tvmode.tvwide #tv{display:grid;column-gap:22px;align-content:center;
-  grid-template-columns:minmax(190px,22%) 1fr;
+  grid-template-columns:minmax(240px,28%) 1fr;
   grid-template-rows:auto auto auto 1fr;
   min-height:calc(100vh - 96px)}
 html.tvmode.tvwide #tv>#tvLinkBar{grid-column:1;grid-row:1;margin-bottom:4px}
@@ -122,6 +122,20 @@ html.tvmode.tvwide #tv>.board{grid-column:2;grid-row:1/-1;align-self:center;just
    داخل إطاره ولا يُقصّ منه شيء. */
 html.tvmode.tvwide .hrow{transform:translateX(calc((var(--hw) + var(--hg,4px))/-4))}
 html.tvmode.tvwide .hrow.off{transform:translateX(calc((var(--hw) + var(--hg,4px))/4))}
+/* ===== السؤال على الجنب بدل وسط الشاشة =====
+   كانت نافذة السؤال تغطّي اللوح كاملاً، فالحضور يفقدون الحروف وهم يقرأون.
+   على الشاشات العريضة نثبّتها في العمود الجانبي تحت النتائج، بلا تعتيم،
+   فيبقى اللوح ظاهراً طوال الوقت. الإحداثيات تُقاس في tvFit. */
+html.tvmode.tvwide #tvOv{background:none;padding:0;display:block;overflow:auto;
+  inset:auto;
+  left:var(--tvq-left,14px);
+  width:var(--tvq-width,28vw);
+  top:var(--tvq-top,200px);
+  bottom:14px}
+html.tvmode.tvwide #tvOv .modal{max-width:none;width:100%;max-height:100%;margin:0}
+html.tvmode.tvwide #tvOv .qtext{font-size:clamp(18px,1.55vw,32px);line-height:1.5}
+html.tvmode.tvwide #tvOv .cat{font-size:clamp(14px,1.05vw,22px)}
+html.tvmode.tvwide #tvOv .winner{font-size:clamp(16px,1.3vw,26px)}
 .rlabel{text-align:center;color:var(--yel);font-weight:800;margin-bottom:8px}
 
 /* اللوح */
@@ -404,7 +418,7 @@ input[type=color]{width:46px;height:32px;min-width:46px;padding:0;border:0;backg
     <button id="tAll">طباعة / PDF</button>
     <button id="tTv">شاشة العرض 📺</button>
     <button id="tRole" title="تبديل الدور">👤</button>
-    <span class="badge" id="ver" style="align-self:center">v133-tvfit</span>
+    <span class="badge" id="ver" style="align-self:center">v134-tvq</span>
   </div>
 
   <!-- ========== الغرفة ========== -->
@@ -4631,6 +4645,14 @@ function tvFit(){
   var availH=window.innerHeight - r.top - 18 - 42;
   var byW=(availW - (n-1)*hg - hg/2)/(n+0.5);
   var byH=availH/(1.16 + (n-1)*(1.16+ov));
+  /* موضع نافذة السؤال: أسفل النتائج داخل العمود الجانبي */
+  var sc=sec.querySelector('.scores');
+  var sr=sc?sc.getBoundingClientRect():null, rr=side?side.getBoundingClientRect():null;
+  if(rr){
+    root.style.setProperty('--tvq-left',Math.round(rr.left)+'px');
+    root.style.setProperty('--tvq-width',Math.round(rr.width)+'px');
+    root.style.setProperty('--tvq-top',Math.round((sr?sr.bottom:rr.bottom)+12)+'px');
+  }
   var hw=Math.floor(Math.min(byW,byH));
   /* لا سقف أعلى: القيدان أعلاه هما الحد. أي سقف ثابت يعيد المشكلة
      نفسها على الشاشات الكبيرة — وهذا ما كان يصغّر اللوح أصلاً. */
